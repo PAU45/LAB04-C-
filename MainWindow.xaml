@@ -1,0 +1,50 @@
+﻿<Window x:Class="lab04.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:lab04"
+        mc:Ignorable="d"
+        Title="Ventana Principal" Height="750" Width="900">
+    <Grid>
+        <StackPanel Margin="10">
+            <Label Content="Listado de Detalles de Pedidos por Fecha" FontWeight="Bold" Margin="0,10,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
+                <Label Content="Fecha Inicio:"/>
+                <DatePicker Name="dpFechaInicio" Width="120" Margin="5,0"/>
+                <Label Content="Fecha Fin:"/>
+                <DatePicker Name="dpFechaFin" Width="120" Margin="5,0"/>
+                <Button Name="btnBuscarPedidos" Content="Buscar Pedidos" Click="btnBuscarPedidos_Click" Margin="10,0"/>
+            </StackPanel>
+
+            <DataGrid Name="PedidosDataGrid" AutoGenerateColumns="True" Height="150"/>
+
+            <Separator Height="20" Background="LightGray" Margin="0,10"/>
+
+            <Label Content="Buscar Proveedores" FontWeight="Bold" Margin="0,10,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
+                <Label Content="Nombre de Contacto:"/>
+                <TextBox Name="txtNombreContacto" Width="150" Margin="5,0"/>
+                <Label Content="Ciudad:"/>
+                <TextBox Name="txtCiudad" Width="150" Margin="5,0"/>
+                <Button Name="btnBuscarProveedores" Content="Buscar" Click="btnBuscarProveedores_Click" Margin="10,0"/>
+            </StackPanel>
+
+            <DataGrid Name="ProveedoresDataGrid" AutoGenerateColumns="True" Height="150"/>
+
+            <Separator Height="20" Background="LightGray" Margin="0,10"/>
+
+            <Button Name="btnCargarProductos" Content="Cargar Productos" Margin="0,5,0,5" Click="btnCargarProductos_Click"/>
+
+            <Label Content="Listado de Productos" FontWeight="Bold" Margin="0,0,0,5"/>
+
+            <DataGrid Name="ProductosDataGrid" AutoGenerateColumns="True" Height="150" Margin="0,0,0,20"/>
+
+            <Button Name="btnCargarCategorias" Content="Cargar Categorías" Margin="0,5,0,5" Click="btnCargarCategorias_Click"/>
+
+            <Label Content="Listado de Categorías" FontWeight="Bold" Margin="0,0,0,5"/>
+
+            <DataGrid Name="CategoriasDataGrid" AutoGenerateColumns="True" Height="150"/>
+        </StackPanel>
+    </Grid>
+</Window>
