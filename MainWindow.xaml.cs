@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
-
+using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Windows;
@@ -10,75 +10,60 @@ namespace lab04
 {
     public partial class MainWindow : Window
     {
-        // Variable de conexión global
-        SqlConnection sqlConnection = new SqlConnection("Data Source=LAB1502-022\\SQLEXPRESS;Initial Catalog=Neptuno;User Id=paulo; Pwd=123456; TrustServerCertificate=true");
+        private readonly string connectionString;
+        private readonly SqlConnection sqlConnection;
+        private bool esNuevoProducto = true;
+        private Producto productoSeleccionado;
 
-        // Clases para almacenar los datos de las tablas
         public class Producto
         {
             public int idproducto { get; set; }
             public string nombreProducto { get; set; }
+            public int? idProveedor { get; set; }
+            public int? idCategoria { get; set; }
+            public string cantidadPorUnidad { get; set; }
             public decimal? precioUnidad { get; set; }
-        }
-
-        public class Categoria
-        {
-            public int idcategoria { get; set; }
-            public string nombrecategoria { get; set; }
-            public string descripcion { get; set; }
-        }
-
-        public class Proveedor
-        {
-            public int idProveedor { get; set; }
-            public string nombreCompania { get; set; }
-            public string nombrecontacto { get; set; }
-            public string cargocontacto { get; set; }
-            public string direccion { get; set; }
-            public string ciudad { get; set; }
-            public string region { get; set; }
-            public string codPostal { get; set; }
-            public string pais { get; set; }
-            public string telefono { get; set; }
-            public string fax { get; set; }
-            public string paginaprincipal { get; set; }
-        }
-
-        // Clase con la corrección en 'descuento'
-        public class DetallePedido
-        {
-            public int idpedido { get; set; }
-            public int idproducto { get; set; }
-            public decimal preciounidad { get; set; }
-            public int cantidad { get; set; }
-            public decimal descuento { get; set; } // <-- Corregido a 'decimal'
-            public DateTime FechaPedido { get; set; }
+            public short? unidadesEnExistencia { get; set; }
+            public short? unidadesEnPedido { get; set; }
+            public short? nivelNuevoPedido { get; set; }
+            public short? suspendido { get; set; }
+            public string categoriaProducto { get; set; }
+            public bool estado { get; set; }
         }
 
         public MainWindow()
         {
             InitializeComponent();
+            try
+            {
+                connectionString = ConfigurationManager.ConnectionStrings["NeptunoConnection"].ConnectionString;
+                sqlConnection = new SqlConnection(connectionString);
+                CargarProductosActivos(); // Cargar productos activos al iniciar
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error de conexión: " + ex.Message);
+            }
         }
 
-        private void btnCargarProductos_Click(object sender, RoutedEventArgs e)
+        private void CargarProductosActivos()
         {
-            CargarProductos();
+            CargarProductos("ListadoDeProductosActivos");
+            ActualizarBotones();
         }
 
-        private void CargarProductos()
+        private void CargarProductos(string procedimiento)
         {
-            ObservableCollection<Producto> listaProductos = new ObservableCollection<Producto>();
             try
             {
                 if (sqlConnection.State == ConnectionState.Closed)
-                {
                     sqlConnection.Open();
-                }
 
-                SqlCommand comando = new SqlCommand("ListadoDeProductosSinParametros", sqlConnection);
+                SqlCommand comando = new SqlCommand(procedimiento, sqlConnection);
                 comando.CommandType = CommandType.StoredProcedure;
 
                 SqlDataReader lector = comando.ExecuteReader();
+                ObservableCollection<Producto> listaProductos = new ObservableCollection<Producto>();
 
                 while (lector.Read())
                 {
@@ -86,7 +71,11 @@ namespace lab04
                     {
                         idproducto = lector.GetInt32(lector.GetOrdinal("idproducto")),
                         nombreProducto = lector.IsDBNull(lector.GetOrdinal("nombreProducto")) ? null : lector.GetString(lector.GetOrdinal("nombreProducto")),
-                        precioUnidad = lector.IsDBNull(lector.GetOrdinal("precioUnidad")) ? (decimal?)null : lector.GetDecimal(lector.GetOrdinal("precioUnidad"))
+                        precioUnidad = lector.IsDBNull(lector.GetOrdinal("precioUnidad")) ? (decimal?)null : lector.GetDecimal(lector.GetOrdinal("precioUnidad")),
+                        unidadesEnExistencia = lector.IsDBNull(lector.GetOrdinal("unidadesEnExistencia")) ? (short?)null : lector.GetInt16(lector.GetOrdinal("unidadesEnExistencia")),
+                        cantidadPorUnidad = lector.IsDBNull(lector.GetOrdinal("cantidadPorUnidad")) ? null : lector.GetString(lector.GetOrdinal("cantidadPorUnidad")),
+                        nivelNuevoPedido = lector.IsDBNull(lector.GetOrdinal("nivelNuevoPedido")) ? (short?)null : lector.GetInt16(lector.GetOrdinal("nivelNuevoPedido")),
+                        estado = lector.GetBoolean(lector.GetOrdinal("estado"))
                     });
                 }
 
@@ -94,173 +83,207 @@ namespace lab04
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al cargar los productos: " + ex.Message);
+                MessageBox.Show("Error al cargar productos: " + ex.Message);
             }
             finally
             {
                 if (sqlConnection.State == ConnectionState.Open)
-                {
                     sqlConnection.Close();
-                }
             }
         }
 
-        private void btnCargarCategorias_Click(object sender, RoutedEventArgs e)
+        private void ActualizarBotones()
         {
-            CargarCategorias();
+            btnEditarProducto.IsEnabled = true;
+            btnNuevoProducto.IsEnabled = true;
         }
 
-        private void CargarCategorias()
+        private void btnEliminar_Click(object sender, RoutedEventArgs e)
         {
-            ObservableCollection<Categoria> listaCategorias = new ObservableCollection<Categoria>();
+            var producto = ProductosDataGrid.SelectedItem as Producto;
+            if (producto == null)
+            {
+                MessageBox.Show("Por favor, seleccione un producto para eliminar.");
+                return;
+            }
+
+            if (MessageBox.Show("¿Está seguro que desea eliminar este producto?", 
+                "Confirmar eliminación", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            {
+                EliminarProducto(producto.idproducto);
+            }
+        }
+
+        private void EliminarProducto(int idProducto)
+        {
             try
             {
                 if (sqlConnection.State == ConnectionState.Closed)
-                {
                     sqlConnection.Open();
-                }
 
-                SqlCommand comando = new SqlCommand("ListadoDeCategoriasSinParametros", sqlConnection);
+                SqlCommand comando = new SqlCommand("USP_EliminarProducto", sqlConnection);
                 comando.CommandType = CommandType.StoredProcedure;
+                comando.Parameters.AddWithValue("@idproducto", idProducto);
 
-                SqlDataReader lector = comando.ExecuteReader();
-
-                while (lector.Read())
-                {
-                    listaCategorias.Add(new Categoria
-                    {
-                        idcategoria = lector.GetInt32(lector.GetOrdinal("idcategoria")),
-                        nombrecategoria = lector.IsDBNull(lector.GetOrdinal("nombrecategoria")) ? null : lector.GetString(lector.GetOrdinal("nombrecategoria")),
-                        descripcion = lector.IsDBNull(lector.GetOrdinal("descripcion")) ? null : lector.GetString(lector.GetOrdinal("descripcion"))
-                    });
-                }
-
-                CategoriasDataGrid.ItemsSource = listaCategorias;
+                comando.ExecuteNonQuery();
+                MessageBox.Show("Producto eliminado correctamente");
+                CargarProductos("ListadoDeProductosActivos");
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al cargar las categorías: " + ex.Message);
+                MessageBox.Show("Error al eliminar el producto: " + ex.Message);
             }
             finally
             {
                 if (sqlConnection.State == ConnectionState.Open)
-                {
                     sqlConnection.Close();
-                }
             }
         }
 
-        private void btnBuscarProveedores_Click(object sender, RoutedEventArgs e)
+        private void btnNuevoProducto_Click(object sender, RoutedEventArgs e)
         {
-            CargarProveedores();
+            esNuevoProducto = true;
+            LimpiarFormulario();
+            MostrarFormulario(true);
         }
 
-        private void CargarProveedores()
+        private void btnEditarProducto_Click(object sender, RoutedEventArgs e)
         {
-            ObservableCollection<Proveedor> listaProveedores = new ObservableCollection<Proveedor>();
+            var producto = ProductosDataGrid.SelectedItem as Producto;
+            if (producto == null)
+            {
+                MessageBox.Show("Por favor, seleccione un producto para editar.");
+                return;
+            }
+
+            esNuevoProducto = false;
+            productoSeleccionado = producto;
+            CargarProductoEnFormulario(producto);
+            MostrarFormulario(true);
+        }
+
+        private void LimpiarFormulario()
+        {
+            txtNombreProducto.Text = string.Empty;
+            txtPrecioUnitario.Text = string.Empty;
+            txtUnidadesExistencia.Text = string.Empty;
+            txtCantidadPorUnidad.Text = string.Empty;
+            txtNivelReorden.Text = string.Empty;
+        }
+
+        private void MostrarFormulario(bool mostrar)
+        {
+            panelEdicion.Visibility = mostrar ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void CargarProductoEnFormulario(Producto producto)
+        {
+            txtNombreProducto.Text = producto.nombreProducto;
+            txtPrecioUnitario.Text = producto.precioUnidad?.ToString();
+            txtUnidadesExistencia.Text = producto.unidadesEnExistencia?.ToString();
+            txtCantidadPorUnidad.Text = producto.cantidadPorUnidad;
+            txtNivelReorden.Text = producto.nivelNuevoPedido?.ToString();
+        }
+
+        private void btnGuardar_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtNombreProducto.Text))
+            {
+                MessageBox.Show("El nombre del producto es obligatorio.");
+                return;
+            }
+
+            try
+            {
+                var producto = new Producto
+                {
+                    nombreProducto = txtNombreProducto.Text,
+                    precioUnidad = !string.IsNullOrEmpty(txtPrecioUnitario.Text) ? decimal.Parse(txtPrecioUnitario.Text) : (decimal?)null,
+                    unidadesEnExistencia = !string.IsNullOrEmpty(txtUnidadesExistencia.Text) ? short.Parse(txtUnidadesExistencia.Text) : (short?)null,
+                    cantidadPorUnidad = txtCantidadPorUnidad.Text,
+                    nivelNuevoPedido = !string.IsNullOrEmpty(txtNivelReorden.Text) ? short.Parse(txtNivelReorden.Text) : (short?)null
+                };
+
+                if (esNuevoProducto)
+                    InsertarProducto(producto);
+                else
+                {
+                    producto.idproducto = productoSeleccionado.idproducto;
+                    ActualizarProducto(producto);
+                }
+
+                MostrarFormulario(false);
+                CargarProductosActivos();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al guardar el producto: {ex.Message}");
+            }
+        }
+
+        private void btnCancelar_Click(object sender, RoutedEventArgs e)
+        {
+            MostrarFormulario(false);
+        }
+
+        private void InsertarProducto(Producto producto)
+        {
             try
             {
                 if (sqlConnection.State == ConnectionState.Closed)
-                {
                     sqlConnection.Open();
-                }
 
-                SqlCommand comando = new SqlCommand("ListadoDeProveedoresPorNombreyCiudad", sqlConnection);
+                SqlCommand comando = new SqlCommand("USP_InsertarProducto", sqlConnection);
                 comando.CommandType = CommandType.StoredProcedure;
 
-                comando.Parameters.AddWithValue("@nombrecontacto", txtNombreContacto.Text);
-                comando.Parameters.AddWithValue("@ciudad", txtCiudad.Text);
+                comando.Parameters.AddWithValue("@nombreProducto", producto.nombreProducto);
+                comando.Parameters.AddWithValue("@cantidadPorUnidad", (object)producto.cantidadPorUnidad ?? DBNull.Value);
+                comando.Parameters.AddWithValue("@precioUnidad", (object)producto.precioUnidad ?? DBNull.Value);
+                comando.Parameters.AddWithValue("@unidadesEnExistencia", (object)producto.unidadesEnExistencia ?? DBNull.Value);
+                comando.Parameters.AddWithValue("@nivelNuevoPedido", (object)producto.nivelNuevoPedido ?? DBNull.Value);
 
-                SqlDataReader lector = comando.ExecuteReader();
-
-                while (lector.Read())
-                {
-                    listaProveedores.Add(new Proveedor
-                    {
-                        idProveedor = lector.GetInt32(lector.GetOrdinal("idProveedor")),
-                        nombreCompania = lector.GetString(lector.GetOrdinal("nombreCompañia")),
-                        nombrecontacto = lector.GetString(lector.GetOrdinal("nombrecontacto")),
-                        cargocontacto = lector.GetString(lector.GetOrdinal("cargocontacto")),
-                        direccion = lector.GetString(lector.GetOrdinal("direccion")),
-                        ciudad = lector.GetString(lector.GetOrdinal("ciudad")),
-                        region = lector.IsDBNull(lector.GetOrdinal("region")) ? null : lector.GetString(lector.GetOrdinal("region")),
-                        codPostal = lector.IsDBNull(lector.GetOrdinal("codPostal")) ? null : lector.GetString(lector.GetOrdinal("codPostal")),
-                        pais = lector.GetString(lector.GetOrdinal("pais")),
-                        telefono = lector.GetString(lector.GetOrdinal("telefono")),
-                        fax = lector.IsDBNull(lector.GetOrdinal("fax")) ? null : lector.GetString(lector.GetOrdinal("fax")),
-                        paginaprincipal = lector.IsDBNull(lector.GetOrdinal("paginaprincipal")) ? null : lector.GetString(lector.GetOrdinal("paginaprincipal"))
-                    });
-                }
-
-                ProveedoresDataGrid.ItemsSource = listaProveedores;
+                comando.ExecuteNonQuery();
+                MessageBox.Show("Producto insertado correctamente");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                MessageBox.Show("Error al buscar proveedores: " + ex.Message);
+                throw;
             }
             finally
             {
                 if (sqlConnection.State == ConnectionState.Open)
-                {
                     sqlConnection.Close();
-                }
             }
         }
 
-        private void btnBuscarPedidos_Click(object sender, RoutedEventArgs e)
+        private void ActualizarProducto(Producto producto)
         {
-            CargarDetallesPedidos();
-        }
-
-        private void CargarDetallesPedidos()
-        {
-            ObservableCollection<DetallePedido> listaPedidos = new ObservableCollection<DetallePedido>();
             try
             {
-                if (dpFechaInicio.SelectedDate == null || dpFechaFin.SelectedDate == null)
-                {
-                    MessageBox.Show("Por favor, seleccione un rango de fechas.");
-                    return;
-                }
-
                 if (sqlConnection.State == ConnectionState.Closed)
-                {
                     sqlConnection.Open();
-                }
 
-                SqlCommand comando = new SqlCommand("ListadoDeDetallesDePedidosPorFecha", sqlConnection);
+                SqlCommand comando = new SqlCommand("USP_ActualizarProducto", sqlConnection);
                 comando.CommandType = CommandType.StoredProcedure;
 
-                comando.Parameters.AddWithValue("@fechaInicio", dpFechaInicio.SelectedDate);
-                comando.Parameters.AddWithValue("@fechaFin", dpFechaFin.SelectedDate);
+                comando.Parameters.AddWithValue("@idproducto", producto.idproducto);
+                comando.Parameters.AddWithValue("@nombreProducto", producto.nombreProducto);
+                comando.Parameters.AddWithValue("@cantidadPorUnidad", (object)producto.cantidadPorUnidad ?? DBNull.Value);
+                comando.Parameters.AddWithValue("@precioUnidad", (object)producto.precioUnidad ?? DBNull.Value);
+                comando.Parameters.AddWithValue("@unidadesEnExistencia", (object)producto.unidadesEnExistencia ?? DBNull.Value);
+                comando.Parameters.AddWithValue("@nivelNuevoPedido", (object)producto.nivelNuevoPedido ?? DBNull.Value);
 
-                SqlDataReader lector = comando.ExecuteReader();
-
-                while (lector.Read())
-                {
-                    listaPedidos.Add(new DetallePedido
-                    {
-                        idpedido = lector.GetInt32(lector.GetOrdinal("idpedido")),
-                        idproducto = lector.GetInt32(lector.GetOrdinal("idproducto")),
-                        preciounidad = lector.GetDecimal(lector.GetOrdinal("preciounidad")),
-                        cantidad = lector.GetInt32(lector.GetOrdinal("cantidad")),
-                        descuento = lector.GetDecimal(lector.GetOrdinal("descuento")), // <-- Corregido para usar GetDecimal
-                        FechaPedido = lector.GetDateTime(lector.GetOrdinal("FechaPedido"))
-                    });
-                }
-
-                PedidosDataGrid.ItemsSource = listaPedidos;
+                comando.ExecuteNonQuery();
+                MessageBox.Show("Producto actualizado correctamente");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                MessageBox.Show("Error al buscar detalles de pedidos: " + ex.Message);
+                throw;
             }
             finally
             {
                 if (sqlConnection.State == ConnectionState.Open)
-                {
                     sqlConnection.Close();
-                }
             }
         }
     }

@@ -5,46 +5,136 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:lab04"
         mc:Ignorable="d"
-        Title="Ventana Principal" Height="750" Width="900">
+        Title="Gestión de Productos" Height="600" Width="1000"
+        WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Padding" Value="15,5"/>
+            <Setter Property="Background" Value="#007BFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="MinWidth" Value="130"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#CCC"/>
+        </Style>
+        <Style TargetType="Label">
+            <Setter Property="Margin" Value="5,5,5,0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Window.Resources>
+
     <Grid>
-        <StackPanel Margin="10">
-            <Label Content="Listado de Detalles de Pedidos por Fecha" FontWeight="Bold" Margin="0,10,0,0"/>
-            <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
-                <Label Content="Fecha Inicio:"/>
-                <DatePicker Name="dpFechaInicio" Width="120" Margin="5,0"/>
-                <Label Content="Fecha Fin:"/>
-                <DatePicker Name="dpFechaFin" Width="120" Margin="5,0"/>
-                <Button Name="btnBuscarPedidos" Content="Buscar Pedidos" Click="btnBuscarPedidos_Click" Margin="10,0"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="300"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Panel principal - Lista de productos -->
+        <DockPanel Grid.Column="0" Margin="10">
+            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                <TextBlock Text="GESTIÓN DE PRODUCTOS" 
+                         FontSize="24" 
+                         FontWeight="Bold" 
+                         Margin="0,0,0,20"/>
+                
+                <WrapPanel>
+                    <Button Name="btnNuevoProducto" 
+                            Content="➕ Nuevo Producto" 
+                            Click="btnNuevoProducto_Click"/>
+                    <Button Name="btnEditarProducto" 
+                            Content="✏️ Editar" 
+                            Click="btnEditarProducto_Click"/>
+                    <Button Name="btnEliminar" 
+                            Content="❌ Eliminar" 
+                            Click="btnEliminar_Click"
+                            Background="#dc3545"/>
+                </WrapPanel>
             </StackPanel>
 
-            <DataGrid Name="PedidosDataGrid" AutoGenerateColumns="True" Height="150"/>
+            <DataGrid Name="ProductosDataGrid" 
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      SelectionMode="Single"
+                      SelectionUnit="FullRow"
+                      GridLinesVisibility="Horizontal"
+                      AlternatingRowBackground="#F5F5F5"
+                      BorderThickness="1"
+                      BorderBrush="#DDD"
+                      Margin="0,10,0,0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID" Binding="{Binding idproducto}" Width="60"/>
+                    <DataGridTextColumn Header="Nombre" Binding="{Binding nombreProducto}" Width="*"/>
+                    <DataGridTextColumn Header="Precio" Binding="{Binding precioUnidad, StringFormat=C2}" Width="100"/>
+                    <DataGridTextColumn Header="Stock" Binding="{Binding unidadesEnExistencia}" Width="80"/>
+                    <DataGridTextColumn Header="Estado" Binding="{Binding estado}" Width="100">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding estado}" Value="True">
+                                        <Setter Property="Text" Value="Activo"/>
+                                        <Setter Property="Foreground" Value="Green"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding estado}" Value="False">
+                                        <Setter Property="Text" Value="Eliminado"/>
+                                        <Setter Property="Foreground" Value="Red"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
 
-            <Separator Height="20" Background="LightGray" Margin="0,10"/>
+        <!-- Panel lateral - Formulario de edición -->
+        <Border Grid.Column="1" 
+                Background="#F8F9FA" 
+                BorderBrush="#DEE2E6" 
+                BorderThickness="1,0,0,0">
+            <StackPanel Name="panelEdicion" 
+                        Margin="15" 
+                        Visibility="Collapsed">
+                <TextBlock Text="DETALLES DEL PRODUCTO" 
+                         FontSize="16" 
+                         FontWeight="Bold" 
+                         Margin="0,0,0,20"/>
 
-            <Label Content="Buscar Proveedores" FontWeight="Bold" Margin="0,10,0,0"/>
-            <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
-                <Label Content="Nombre de Contacto:"/>
-                <TextBox Name="txtNombreContacto" Width="150" Margin="5,0"/>
-                <Label Content="Ciudad:"/>
-                <TextBox Name="txtCiudad" Width="150" Margin="5,0"/>
-                <Button Name="btnBuscarProveedores" Content="Buscar" Click="btnBuscarProveedores_Click" Margin="10,0"/>
+                <Label Content="Nombre del Producto:"/>
+                <TextBox Name="txtNombreProducto"/>
+
+                <Label Content="Precio Unitario:"/>
+                <TextBox Name="txtPrecioUnitario"/>
+
+                <Label Content="Unidades en Existencia:"/>
+                <TextBox Name="txtUnidadesExistencia"/>
+
+                <Label Content="Cantidad por Unidad:"/>
+                <TextBox Name="txtCantidadPorUnidad"/>
+
+                <Label Content="Nivel de Reorden:"/>
+                <TextBox Name="txtNivelReorden"/>
+
+                <StackPanel Orientation="Horizontal" 
+                          Margin="0,20,0,0" 
+                          HorizontalAlignment="Center">
+                    <Button Name="btnGuardar" 
+                            Content="💾 Guardar" 
+                            Click="btnGuardar_Click" 
+                            Background="#28A745"/>
+                    <Button Name="btnCancelar" 
+                            Content="✖ Cancelar" 
+                            Click="btnCancelar_Click" 
+                            Background="#DC3545"/>
+                </StackPanel>
             </StackPanel>
-
-            <DataGrid Name="ProveedoresDataGrid" AutoGenerateColumns="True" Height="150"/>
-
-            <Separator Height="20" Background="LightGray" Margin="0,10"/>
-
-            <Button Name="btnCargarProductos" Content="Cargar Productos" Margin="0,5,0,5" Click="btnCargarProductos_Click"/>
-
-            <Label Content="Listado de Productos" FontWeight="Bold" Margin="0,0,0,5"/>
-
-            <DataGrid Name="ProductosDataGrid" AutoGenerateColumns="True" Height="150" Margin="0,0,0,20"/>
-
-            <Button Name="btnCargarCategorias" Content="Cargar Categorías" Margin="0,5,0,5" Click="btnCargarCategorias_Click"/>
-
-            <Label Content="Listado de Categorías" FontWeight="Bold" Margin="0,0,0,5"/>
-
-            <DataGrid Name="CategoriasDataGrid" AutoGenerateColumns="True" Height="150"/>
-        </StackPanel>
+        </Border>
     </Grid>
 </Window>
